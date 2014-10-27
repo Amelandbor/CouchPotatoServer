@@ -89,7 +89,12 @@ class ApiHandler(RequestHandler):
         route = route.strip('/')
         if not api.get(route):
             self.write('API call doesn\'t seem to exist')
+            self.finish()
             return
+
+        # Create lock if it doesn't exist
+        if route in api_locks and not api_locks.get(route):
+            api_locks[route] = threading.Lock()
 
         api_locks[route].acquire()
 
@@ -138,6 +143,8 @@ class ApiHandler(RequestHandler):
                 else:
                     self.write(result)
                     self.finish()
+            except UnicodeDecodeError:
+                log.error('Failed proper encode: %s', traceback.format_exc())
             except:
                 log.debug('Failed doing request, probably already closed: %s', (traceback.format_exc()))
                 try: self.finish({'success': False, 'error': 'Failed returning results'})
